@@ -18,24 +18,75 @@ import {
   usePriceComparison,
 } from "../hooks/usePriceComparison";
 import { SkeletonChart } from "./Skeleton";
+import type { PriceTimeframe } from "../types";
 
 interface PriceChartProps {
   symbol: string;
 }
 
 interface EnhancedPriceChartProps extends PriceChartProps {
+  data: Array<{ timestamp: string; price: number; source: string }>;
+  isLoading: boolean;
   timeframe: PriceTimeframe;
   onTimeframeChange: (tf: PriceTimeframe) => void;
 }
 
-const SOURCE_COLORS: Record<string, string> = {
-  sdex: "#0057FF",
+const ALL_SOURCES: PriceSourceId[] = ["stellar_dex", "circle", "coinbase", "stellar_amm"];
+
+const SOURCE_COLORS: Record<PriceSourceId, string> = {
+  stellar_dex: "#0057FF",
   circle: "#00D4AA",
   coinbase: "#0052FF",
   stellar_amm: "#FF6B35",
 };
 
 const TIMEFRAMES: PriceTimeframe[] = ["1H", "24H", "7D", "30D"];
+
+function stellarVarRgb(varName: string, fallbackRgb: string): string {
+  try {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    if (!raw) return fallbackRgb;
+    return `rgb(${raw})`;
+  } catch {
+    return fallbackRgb;
+  }
+}
+
+function msForRange(rangeId: TimeRangeId, customStartIso: string, customEndIso: string): number {
+  switch (rangeId) {
+    case "1h":
+      return 60 * 60 * 1000;
+    case "24h":
+      return 24 * 60 * 60 * 1000;
+    case "7d":
+      return 7 * 24 * 60 * 60 * 1000;
+    case "30d":
+      return 30 * 24 * 60 * 60 * 1000;
+    case "custom": {
+      const start = Date.parse(customStartIso);
+      const end = Date.parse(customEndIso);
+      if (Number.isFinite(start) && Number.isFinite(end) && end > start) return end - start;
+      return 24 * 60 * 60 * 1000;
+    }
+  }
+}
+
+function formatPrice(v: number | null): string {
+  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
+  return `$${v.toFixed(4)}`;
+}
+
+function formatPct(v: number | null): string {
+  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
+  return `${(v * 100).toFixed(2)}%`;
+}
+
+function tooltipLabelFromIso(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString();
+}
 
 function getTimeframeTickFormatter(timeframe: PriceTimeframe) {
   return (val: string) => {
@@ -60,11 +111,13 @@ function getTimeframeTickFormatter(timeframe: PriceTimeframe) {
           month: "short",
           day: "numeric",
         });
+      default:
+        return "";
     }
   };
 }
 
-export default function PriceChart({ symbol, data, isLoading }: PriceChartProps) {
+export default function PriceChart({ symbol }: PriceChartProps) {
   const titleId = `price-chart-title-${symbol}`;
   const descId = `price-chart-desc-${symbol}`;
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -463,7 +516,7 @@ export function EnhancedPriceChart({
                 type="monotone"
                 dataKey="price"
                 name={source}
-                stroke={SOURCE_COLORS[source] || "#8A8FA8"}
+                stroke={(SOURCE_COLORS as Record<string, string>)[source] || "#8A8FA8"}
                 dot={false}
                 strokeWidth={2}
               />

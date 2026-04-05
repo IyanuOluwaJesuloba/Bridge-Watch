@@ -8,10 +8,7 @@ import LiquidityDepthChart from "../components/LiquidityDepthChart";
 import type { DataTableColumnDef } from "../components/DataTable";
 import { DataTable } from "../components/DataTable";
 import type { CellContext } from "@tanstack/react-table";
-import RefreshControls from "../components/RefreshControls";
 import { ErrorBoundary, LoadingSpinner } from "../components/Skeleton";
-import VolumeAnalytics from "../components/VolumeAnalytics";
-import AlertConfigSection from "../components/AlertConfigSection";
 
 enum TabId {
   Overview = "overview",
@@ -30,15 +27,12 @@ export default function AssetDetail() {
     priceHistory,
     priceSources,
     liquidity,
-    volume,
-    supply,
     healthHistory,
-    alerts,
     timeframe,
     setTimeframe,
   } = useAssetDetail(symbol ?? "");
 
-  const priceSourceRows = (priceData?.sources ?? []) as Array<{
+  const priceSourceRows = (priceSources.data ?? []) as Array<{
     source: string;
     price: number;
     timestamp: string;
@@ -97,6 +91,7 @@ export default function AssetDetail() {
           <AssetHeader
             symbol={symbol}
             assetInfo={assetInfo.data}
+            health={health.data}
             isLoading={assetInfo.isLoading}
           />
 
@@ -119,15 +114,17 @@ export default function AssetDetail() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <HealthBreakdown
-                  health={health.data}
-                  history={healthHistory.data}
-                  isLoading={health.isLoading}
+                  factors={health.data?.factors ?? null}
+                  history={(healthHistory.data?.points ?? []).map((p) => ({
+                    timestamp: p.timestamp,
+                    score: p.score,
+                  }))}
+                  isHistoryLoading={healthHistory.isLoading}
                 />
                 <div className="lg:col-span-2">
                   <EnhancedPriceChart
                     symbol={symbol}
                     data={priceHistory.data}
-                    sources={priceSources.data}
                     timeframe={timeframe}
                     onTimeframeChange={setTimeframe}
                     isLoading={priceHistory.isLoading}
@@ -144,6 +141,31 @@ export default function AssetDetail() {
                   </div>
                 </div>
               </div>
+
+              <DataTable
+                data={priceSourceRows}
+                columns={priceSourceColumns}
+                isLoading={priceSources.isLoading}
+                title="Price Sources"
+                description={`Price sources for ${symbol} including last update times`}
+                pageSizeOptions={[10, 20, 50]}
+                filenameBase={`${symbol}-price-sources`}
+                enableRowSelection={true}
+                enableMultiSort={true}
+                enableColumnReorder={true}
+                enableVirtualization={true}
+                rowActions={{
+                  items: [
+                    {
+                      id: "copy-source",
+                      label: "Copy source",
+                      onSelect: (row) => {
+                        void navigator.clipboard.writeText(row.source);
+                      },
+                    },
+                  ],
+                }}
+              />
             </div>
           )}
 
@@ -158,41 +180,21 @@ export default function AssetDetail() {
           )}
 
           {activeTab === TabId.Volume && (
-            <VolumeAnalytics data={volume.data} isLoading={volume.isLoading} />
+            <div className="bg-stellar-card border border-stellar-border rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-2">Volume</h3>
+              <div className="text-stellar-text-secondary text-sm">
+                Volume analytics view is not available in this build.
+              </div>
+            </div>
           )}
 
-      <DataTable
-        data={priceSourceRows}
-        columns={priceSourceColumns}
-        isLoading={!priceData}
-        title="Price Sources"
-        description={`Price sources for ${symbol} including last update times`}
-        pageSizeOptions={[10, 20, 50]}
-        filenameBase={`${symbol}-price-sources`}
-        enableRowSelection={true}
-        enableMultiSort={true}
-        enableColumnReorder={true}
-        enableVirtualization={true}
-        rowActions={{
-          items: [
-            {
-              id: "copy-source",
-              label: "Copy source",
-              onSelect: (row) => {
-                void navigator.clipboard.writeText(row.source);
-              },
-            },
-          ],
-        }}
-      />
-    </div>
-  </Suspense>
-</ErrorBoundary>
           {activeTab === TabId.Alerts && (
-            <AlertConfigSection
-              alerts={alerts.data}
-              isLoading={alerts.isLoading}
-            />
+            <div className="bg-stellar-card border border-stellar-border rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-2">Alerts</h3>
+              <div className="text-stellar-text-secondary text-sm">
+                Alert configuration view is not available in this build.
+              </div>
+            </div>
           )}
         </div>
       </Suspense>

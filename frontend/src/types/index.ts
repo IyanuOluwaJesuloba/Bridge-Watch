@@ -162,3 +162,13 @@ export interface CreateApiKeyResponse {
   apiKey: string;
   key: ApiKeyRecord;
 }
+
+export type PriceTimeframe = "1H" | "24H" | "7D" | "30D";
+
+export interface PriceSource {
+  source: string;
+  price: number;
+  deviation: number;
+  timestamp: string;
+  status: "active" | "stale" | "offline";
+}
